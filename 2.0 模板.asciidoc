@@ -1,0 +1,97 @@
+= 模板
+
+== 渲染模板
+
+[source,python]
+--------------------------
+@app.route('/')
+def index():
+    return render_template('index.html')
+    
+@app.route('/user/<name>')
+def index(name):
+    return render_template('index.html',name=name)
+--------------------------
+
+== 变量和过滤器
+
+Jinja2能识别所有类型的变量，包括一些复杂的类型，例如列表、字典、对象。
+
+----------------------
+Hello, {{name|capitalize}}
+----------------------
+
+== 控制结构
+
+- 条件语句
+------------------------
+{% if user %}  
+    Hello, {{ user }}!  
+{% else %}  
+    Hello, Stranger!  
+{% endif %} 
+------------------------
+
+- 循环语句
+------------------------
+<ul>  
+{% for comment in comments %}  
+    <li>{{ comment }}</li>  
+{% endfor %}  
+</ul> 
+------------------------
+
+- 宏
+------------------------
+{% macro render_comment(comment) %}  
+    <li>{{ comment }}</li>  
+{% endmacro %}  
+<ul>  
+    {% for comment in comments %}  
+        {{ render_comment(comment) }}  
+    {% endfor %}  
+</ul> 
+------------------------
+
+- 继承
+
+== 使用Flask-Bootstrap集成bootstrap框架
+
+------------------------
+pip install flask-bootstrap 
+------------------------
+
+== 自定义错误页面
+
+[source,python]
+------------------------
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'),404
+    
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template('500.html'),500
+------------------------
+
+== 链接
+
+=== `url_for()辅助函数`
+
+
+url_for('index') 得到的结果是 / 
+
+url_for('index', _external=True) 返回的则是绝对地址 http://localhost:5000/ 
+  
+还可以生成动态地址：
+
+url_for('user', name='john', _external=True)的返回结果是 http://localhost:5000/user/john 
+
+url_for('index', page=2)的返回结果是 /?page=2。 
+  
+=== 静态文件  
+
+url_for('static', filename='css/styles.css', _external=True) 得到的结果是 http://localhost:5000/static/css/styles.css。 
+
+== 使用Flask-Moment本地化日期和时间
+  
