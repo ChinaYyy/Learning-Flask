@@ -1,0 +1,115 @@
+= Web表单
+
+`pip install flask-wtf`
+
+== 跨站请求伪造保护
+
+Cross-Site Request Forgery (CSRF攻击)
+
+实现CSRF保护，需要设置一个密钥，生成加密令牌。
+
+`app.config['SECRET_KEY'] = 'hard to guess string'`
+
+为了增强安全性，密钥不应该直接写入代码，而要保存在环境变量中。
+
+== 表单类
+
+[source,python]
+-------------------------
+from flask.ext.wtf import Form
+from wtforms import StringField,SubmitField
+from wtforms.validators import Required
+
+class NameForm(Form):
+    name = StringField('What is your name?',validator=[Required())
+    submit = SubmitField('Submit')
+-------------------------
+
+image::./images/wtforms.png[title="WTForms支持的标准字段和验证函数",scaledwidth="60%",align="center"]  
+
+== 将表单渲染成HTML
+
+1.通过参数`form`传入模板，生成一个简单的表单
+
+--------------------------
+<form method="POST">
+    {{form.hidden_tag()}}
+    {{form.name.label}}
+    {{form.submit()}}
+</form>
+--------------------------
+
+2.可以把参数传入渲染字段的函数，来指定id或class属性，然后定义CSS样式
+
+--------------------------
+<form method="POST">
+    {{form.hidden_tag()}}
+    {{form.name.label}} {{form.name(id='my-text-field')}}
+    {{form.submit()}}
+</form>
+--------------------------
+
+3.使用bootstrap中的表单样式
+
+--------------------------
+{% import "bootstrap/wtf.html" as wtf%}
+{{ wtf.quick_form(form) }}
+--------------------------
+
+== 在视图函数中处理表单
+
+== 重定向和用户会话
+
+刷新页面时，浏览器会重新发送之前已经发送过的最后一个请求，如果这个请求是一个包含表单数据的POST请求，刷新页面会再次提交表单。大多数情况下，这不是理想的处理方式。
+
+最好别让Web程序把POST请求作为浏览器发送的最后一个请求。
+
+实现方式是`使用重定向作为POST请求的响应`，而不是常规响应。重定向是一种特殊的响应，响应内容是URL，而不是包含HTML代码的字符串。这个技巧称为`POST/重定向/GET模式`。
+
+这种方法会带来别一个问题POST请求的数据也丢失了，所以需要保存在session中，这样重定向的GET请求才能获得并使用这个数据。
+
+[source,python]
+--------------------------
+@app.route('/',methods=['GET','POST'])
+def index():
+    form = NameForm()
+    if form.validate_on_submit():
+        session['name'] = form.name.data
+        return redirect(url_for('index'))
+    return render_template('index.html',form=form,name=session.get('name'))
+--------------------------
+
+== Flash消息
+
+[source,python]
+--------------------------
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    form = NameForm()
+    if form.validate_on_submit():
+        old_name = session.get('name')
+        if old_name is not None and old_name != form.name.data:
+            flash('Looks like you have changed your name!')
+        session['name'] = form.name.data
+        return redirect(url_for('index'))
+    return render_template('index.html', form=form, name=session.get('name'))
+--------------------------
+
+[source,python]
+--------------------------
+{% block content %}
+
+    {% for message in get_flashed_messages() %}
+    
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        {{ message }}
+    
+    {% endfor %}
+
+    {% block page_content %}{% endblock %}
+
+{% endblock %}
+--------------------------
+
+image::./images/flash.png[title="flash效果",align="center"]
+
