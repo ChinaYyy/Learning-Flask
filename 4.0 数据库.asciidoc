@@ -1,0 +1,233 @@
+= 数据库
+
+== SQL数据库
+
+== NOSQL数据库
+
+== 使用Flask-SQLAlchemy管理数据库
+
+`pip install flask-sqlalchemy`
+
+.Flask-SQLAlchemy数据库URL
+[width="80%",cols="<1,<4"options="header"]
+|======================
+|数据库引擎|URL
+|MySQL|mysql://username:password@hostname/database
+|Postgres|postgres://username:password@hostname/database
+|SQLite(UNIX)|sqlite:////absolute/path/to/database
+|SQLite(Windows)|sqlite:///c:/absolute/path/to/database
+|======================
+
+程序使用的数据库URL必须保存在Flask配置对象的`SQLALCHEMY_DATABASE_URI`中。
+
+配置对象中还有一个很有用的选项，`SQLALCHEMY_COMMIT_ON_TEARDOWN`,设为True时，每次请求结束后都会自动提交数据库中的变动
+
+配置数据库
+[source,python]
+-----
+from flask_sqlalchemy import SQLAlchemy
+
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'hard to guess string'
+app.config['SQLALCHEMY_DATABASE_URI'] =\
+    'sqlite:///' + os.path.join(basedir, 'data.sqlite')
+app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+-----
+
+== 定义模型
+
+[source,python]
+---------
+class Role(db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), unique=True)
+
+    def __repr__(self):
+        return '<Role %r>' % self.name
+
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, index=True)
+
+    def __repr__(self):
+        return '<User %r>' % self.username
+---------
+
+image::./images/sqlalchemy-db-column.png[title="SQLAlchemy列类型",scaledwidth="60%",align="center"]
+image::./images/sqlalchemy-db-column-options.png[title="SQLAlchemy列选项"]
+
+== 关系
+
+[source,python]
+---------
+class Role(db.Model):
+   # ...
+    users = db.relationship('User',backref='role')
+
+
+class User(db.Model):
+    # ...
+    role_id = db.Column(db.Integer,db.ForeignKey('roles.id'))
+---------
+
+`db.relationship()`的第一个参数表明这个关系的另一端是哪个模型。如果模型尚未定义，可使用字符串形式指定。
+
+`db.relationship()`中的backref参数向User模型中添加一个role属性，从而定义反向关系。这一属性可替代role_id访问Role模型，此时获取的是模型对象，而不是外键的值。
+
+除一对多之外，还有几种其他的关系类型。`一对一关系`可以用前面介绍的一对多关系表示，但调用db.relationship()时要把`uselist设为False`，把多变为一。
+
+`多对一关系`对调两个表即可，或者把外键和db.relationship()都放在`多`这一侧。
+
+`多对多关系`，需要用到第三张表，称为关系表。
+
+== 数据库操作
+
+[source,python]
+----------
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///"+os.path.join(basedir,'flasky.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+----------
+
+==== 创建表
+----------
+(venv) $ python hello.py shell  
+>>> from hello import db  
+>>> db.create_all() 
+>>> db.drop_all()
+----------
+
+如果数据表已经存在于数据库中，那么`db.create_all()`不会重新创建或者更新这个表。
+
+修改模型后把发动应用到现有的数据库中，需要先删除旧表再重新娃娃，这一特性会带来不便。
+
+==== 插入行
+
+---------
+>>> from hello import Role, User
+>>> admin_role = Role(name='Admin')
+>>> mod_role = Role(name='Moderator')
+>>> user_role = Role(name='User')
+>>> user_john = User(username='john', role=admin_role)
+>>> user_susan = User(username='susan', role=user_role)
+>>> user_david = User(username='david', role=user_role)
+
+
+>>> db.session.add(admin_role)  
+>>> db.session.add(mod_role)  
+>>> db.session.add(user_role)  
+>>> db.session.add(user_john)  
+>>> db.session.add(user_susan)  
+>>> db.session.add(user_david) 
+
+或
+
+>>> db.session.add_all([admin_role, mod_role, user_role,  
+        user_john, user_susan, user_david])
+        
+
+最后
+
+>>> db.session.commit()
+---------
+
+==== 修改行
+---------
+>>> admin_role.name='Administrator'
+>>> db.session.add(admin_role)
+>>> db.session.commit()
+---------
+
+在数据库模型中，add()方法也能更新模型。
+
+==== 删除行
+---------
+>>> db.session.delete(mod_role)
+>>> db.session.commit()
+---------
+
+`delete()`
+
+==== 查询行
+
+---------
+# filter_by
+peter = User.query.filter_by(username='peter').first()
+# filter
+User.query.filter(User.email.endswith('@example.com')).all()
+# order_by
+User.query.order_by(User.username)
+# limit
+User.query.limit(1).all()
+# primary key
+User.query.get(1)
+---------
+
+image::./images/query-filter.png[title="常用查询过滤器"]
+
+image::./images/query-filter-executor.png[title="常用查询执行器"]
+
+== 集成Python Shell
+
+为了避免每次启动Shell会话，都要导入数据库实例和模型，可以做些配置，让`Flask-Script`的shell命令自动导入特定的对象。
+
+若想把对象添加到导入列表中，要为shell注册一个`make_context`回调函数。
+
+---------
+
+from flask_script import Shell
+
+def make_shell_context():
+    return dict(app=app, db=db, User=User, Role=Role)
+
+manager.add_command("shell",Shell(make_context=make_shell_context))
+
+
+$ python hello.py shell  
+>>> app  
+<Flask 'app'>  
+>>> db  
+<SQLAlchemy engine='sqlite:////home/flask/flasky/data.sqlite'>  
+>>> User  
+<class 'app.User'> 
+---------
+
+== 使用Flask-Migrate实现数据库迁移
+
+更新表的更好方法是使用`数据库迁移框架`，称为`Alembic`。除了使用Alembic之外，Flask程序还可使用Flask-Migrate扩展。
+
+==== 创建迁移仓库
+
+`pip install flask-Migrate`
+
+----
+from flask_migrate import Migrate,MigrateCommand
+
+migrate = Migrate(app,db)
+manager.add_command("db",MigrateCommand)
+
+>>> python hello.py db init
+----
+
+`python hello.py db init`命令会创建`migrations`文件夹，所有迁移脚本都存放其中。
+
+==== 创建迁移脚本
+
+`python hello.py db migrate -m "initial migration"`
+
+==== 更新数据库
+
+`python hello.py db upgrade`
+
+
+
