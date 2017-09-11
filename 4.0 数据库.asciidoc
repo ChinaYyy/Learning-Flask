@@ -9,7 +9,7 @@
 `pip install flask-sqlalchemy`
 
 .Flask-SQLAlchemy数据库URL
-[width="80%",cols="<1,<4"options="header"]
+[width="100%",cols="<1,<4"options="header"]
 |======================
 |数据库引擎|URL
 |MySQL|mysql://username:password@hostname/database
@@ -18,7 +18,7 @@
 |SQLite(Windows)|sqlite:///c:/absolute/path/to/database
 |======================
 
-程序使用的数据库URL必须保存在Flask配置对象的`SQLALCHEMY_DATABASE_URI`中。
+程序使用的数据库URL必须保存在Flask配置对象的 `SQLALCHEMY_DATABASE_URI`中。
 
 配置对象中还有一个很有用的选项，`SQLALCHEMY_COMMIT_ON_TEARDOWN`,设为True时，每次请求结束后都会自动提交数据库中的变动
 
@@ -26,7 +26,6 @@
 [source,python]
 -----
 from flask_sqlalchemy import SQLAlchemy
-
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string'
@@ -60,7 +59,8 @@ class User(db.Model):
 ---------
 
 image::./images/sqlalchemy-db-column.png[title="SQLAlchemy列类型",scaledwidth="60%",align="center"]
-image::./images/sqlalchemy-db-column-options.png[title="SQLAlchemy列选项"]
+
+image::./images/sqlalchemy-db-column-options.png[title="SQLAlchemy列选项",align="center"]
 
 == 关系
 
@@ -173,9 +173,9 @@ User.query.limit(1).all()
 User.query.get(1)
 ---------
 
-image::./images/query-filter.png[title="常用查询过滤器"]
+image::./images/query-filter.png[title="常用查询过滤器",align="center"]
 
-image::./images/query-filter-executor.png[title="常用查询执行器"]
+image::./images/query-filter-executor.png[title="常用查询执行器",align="center"]
 
 == 集成Python Shell
 
